@@ -39,6 +39,7 @@
             width: 100%;
             position: relative;
             z-index: 10;
+            margin-bottom: 80px;
         }
 
         h1 {
@@ -228,48 +229,14 @@
             color: #a8d8ff;
         }
 
-        .save-button {
-            background: linear-gradient(135deg, #4db8ff, #1a8cd8);
-            border: none;
-            padding: 15px 25px;
-            border-radius: 12px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 4px 15px rgba(77, 184, 255, 0.4);
+        .save-info {
             margin-top: 15px;
-            font-size: 16px;
-            width: 100%;
-        }
-
-        .save-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(77, 184, 255, 0.6);
-        }
-
-        .save-button:active {
-            transform: translateY(0);
-        }
-
-        .save-notification {
-            margin-top: 10px;
             padding: 10px;
-            background: rgba(77, 184, 255, 0.2);
-            border-radius: 8px;
+            background: rgba(77, 184, 255, 0.1);
+            border-radius: 10px;
             border: 1px solid #4db8ff;
             font-size: 14px;
-            display: none;
-        }
-
-        .save-notification.show {
-            display: block;
-            animation: fadeInOut 3s ease-in-out;
-        }
-
-        @keyframes fadeInOut {
-            0%, 100% { opacity: 0; }
-            10%, 90% { opacity: 1; }
+            color: #a8d8ff;
         }
 
         .achievements-list::-webkit-scrollbar {
@@ -284,6 +251,27 @@
         .achievements-list::-webkit-scrollbar-thumb {
             background: #4db8ff;
             border-radius: 3px;
+        }
+
+        .fallback-button {
+            background: linear-gradient(135deg, #4db8ff, #1a8cd8);
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(77, 184, 255, 0.4);
+            margin-top: 15px;
+            font-size: 16px;
+            width: 100%;
+            display: none;
+        }
+
+        .fallback-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(77, 184, 255, 0.6);
         }
     </style>
 </head>
@@ -317,12 +305,13 @@
                 </div>
             </div>
 
-            <button class="save-button" id="saveButton">
-                📨 Отправить результат в конкурс
-            </button>
-            <div class="save-notification" id="saveNotification">
-                Результат отправлен! 🎉
+            <div class="save-info" id="saveInfo">
+                💾 Для сохранения результата используй кнопку внизу экрана
             </div>
+
+            <button class="fallback-button" id="fallbackButton">
+                📨 Сохранить результат (для браузера)
+            </button>
         </div>
         
         <div class="tab-content" id="achievementsTab">
@@ -332,6 +321,10 @@
     </div>
 
     <script>
+        // Инициализация Telegram Web App
+        const WebApp = window.Telegram?.WebApp;
+        let MainButton, BackButton;
+
         // Структура игры
         let game = {
             clicks: 0,
@@ -368,10 +361,70 @@
         const clicksPerSecondElement = document.getElementById('clicksPerSecond');
         const clickArea = document.getElementById('clickArea');
         const achievementsList = document.getElementById('achievementsList');
-        const saveButton = document.getElementById('saveButton');
-        const saveNotification = document.getElementById('saveNotification');
+        const saveInfo = document.getElementById('saveInfo');
+        const fallbackButton = document.getElementById('fallbackButton');
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
+
+        // Инициализация Telegram
+        function initTelegram() {
+            if (WebApp) {
+                WebApp.expand();
+                
+                MainButton = WebApp.MainButton;
+                BackButton = WebApp.BackButton;
+
+                // Настраиваем MainButton
+                MainButton.setText("💾 Сохранить результат");
+                MainButton.show();
+                
+                MainButton.onClick(function() {
+                    const gameData = {
+                        total_clicks: game.totalClicks,
+                        achievements: game.achievements.filter(a => a.achieved).length,
+                        play_time: game.playTime,
+                        timestamp: Date.now(),
+                        user_data: WebApp.initDataUnsafe.user
+                    };
+                    
+                    WebApp.sendData(JSON.stringify(gameData));
+                    WebApp.showPopup({
+                        title: "✅ Успешно!",
+                        message: `Результат ${game.totalClicks.toLocaleString()} кликов сохранен!`,
+                        buttons: [{ type: "ok" }]
+                    });
+                });
+
+                // Настраиваем BackButton
+                BackButton.show();
+                BackButton.onClick(function() {
+                    WebApp.showAlert("Для сохранения результата используй кнопку внизу экрана");
+                });
+
+                // Скрываем браузерную кнопку
+                fallbackButton.style.display = 'none';
+                saveInfo.textContent = "💾 Для сохранения результата используй кнопку внизу экрана";
+                
+            } else {
+                // Если не в Telegram, показываем браузерную кнопку
+                fallbackButton.style.display = 'block';
+                saveInfo.textContent = "💾 Нажми кнопку ниже чтобы сохранить результат";
+                
+                fallbackButton.addEventListener('click', function() {
+                    const resultText = `🏆 Мой результат в кликере: ${game.totalClicks.toLocaleString()} кликов!`;
+                    
+                    // Копируем в буфер обмена
+                    const tempInput = document.createElement('textarea');
+                    tempInput.value = resultText;
+                    document.body.appendChild(tempInput);
+                    tempInput.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempInput);
+                    
+                    alert('✅ Результат скопирован! Отправь его боту в чат.');
+                });
+            }
+        }
 
         // Загрузка сохранения
         function loadGame() {
@@ -395,39 +448,6 @@
         // Сохранение игры
         function saveGame() {
             localStorage.setItem('clickerSave', JSON.stringify(game));
-        }
-
-        // Отправка результата в бота
-        function sendResultToBot() {
-            const isTelegram = typeof window.Telegram !== 'undefined';
-            
-            if (isTelegram) {
-                const webApp = window.Telegram.WebApp;
-                const user = webApp.initDataUnsafe.user;
-                
-                // Отправляем данные в бота
-                webApp.sendData(JSON.stringify({
-                    action: 'save_result',
-                    user_id: user.id,
-                    username: user.username,
-                    first_name: user.first_name,
-                    clicks: game.totalClicks,
-                    timestamp: Date.now()
-                }));
-                
-                showSaveNotification();
-            } else {
-                // Если не в Telegram, показываем сообщение
-                alert(`Ваш результат: ${game.totalClicks} кликов! Скопируйте это число и отправьте боту.`);
-                showSaveNotification();
-            }
-        }
-
-        function showSaveNotification() {
-            saveNotification.classList.add('show');
-            setTimeout(() => {
-                saveNotification.classList.remove('show');
-            }, 3000);
         }
 
         // Обработчик клика
@@ -494,7 +514,6 @@
         }
 
         function showAchievement(achievement) {
-            // Можно добавить уведомление о достижении
             console.log('Получено достижение:', achievement.name);
         }
 
@@ -551,6 +570,7 @@
         // Инициализация игры
         function init() {
             loadGame();
+            initTelegram();
             renderAchievements();
             createSnow();
             
@@ -559,8 +579,6 @@
                 e.preventDefault();
                 handleClick(e);
             });
-            
-            saveButton.addEventListener('click', sendResultToBot);
             
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
