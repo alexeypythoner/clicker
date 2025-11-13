@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Новогодний Кликер</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
             margin: 0;
@@ -227,37 +228,50 @@
             color: #a8d8ff;
         }
 
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(77, 184, 255, 0.9);
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            transform: translateX(120%);
-            transition: transform 0.5s;
-            max-width: 300px;
-            z-index: 1000;
-            border-left: 5px solid #4db8ff;
-        }
-
-        .notification.show {
-            transform: translateX(0);
-        }
-
-        .notification-title {
-            font-weight: bold;
-            margin-bottom: 5px;
+        .save-button {
+            background: linear-gradient(135deg, #4db8ff, #1a8cd8);
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
             color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(77, 184, 255, 0.4);
+            margin-top: 15px;
+            font-size: 16px;
+            width: 100%;
         }
 
-        .notification-desc {
-            font-size: 0.9rem;
-            color: #e6f7ff;
+        .save-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(77, 184, 255, 0.6);
         }
 
-        /* Стили для скроллбара */
+        .save-button:active {
+            transform: translateY(0);
+        }
+
+        .save-notification {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(77, 184, 255, 0.2);
+            border-radius: 8px;
+            border: 1px solid #4db8ff;
+            font-size: 14px;
+            display: none;
+        }
+
+        .save-notification.show {
+            display: block;
+            animation: fadeInOut 3s ease-in-out;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            10%, 90% { opacity: 1; }
+        }
+
         .achievements-list::-webkit-scrollbar {
             width: 6px;
         }
@@ -275,24 +289,23 @@
 </head>
 <body>
     <div class="snow" id="snowContainer"></div>
-
+    
     <div class="container">
         <h1>❄️ Новогодний Кликер ❄️</h1>
         <div class="subtitle">Кликай на снежинку!</div>
-
+        
         <div class="tabs">
             <div class="tab active" data-tab="game">Игра</div>
             <div class="tab" data-tab="achievements">Достижения</div>
         </div>
-
-        <!-- Вкладка игры -->
+        
         <div class="tab-content active" id="gameTab">
             <div class="counter" id="counter">0</div>
-
+            
             <div class="click-area" id="clickArea">
                 <div class="snowflake">❄️</div>
             </div>
-
+            
             <div class="stats">
                 <div class="stat">
                     <div class="stat-value" id="totalClicks">0</div>
@@ -303,25 +316,23 @@
                     <div class="stat-label">Кликов/сек</div>
                 </div>
             </div>
-        </div>
 
-        <!-- Вкладка достижений -->
-        <div class="tab-content" id="achievementsTab">
-            <h3>Ваши достижения</h3>
-            <div class="achievements-list" id="achievementsList">
-                <!-- Достижения будут добавляться через JavaScript -->
+            <button class="save-button" id="saveButton">
+                📨 Отправить результат в конкурс
+            </button>
+            <div class="save-notification" id="saveNotification">
+                Результат отправлен! 🎉
             </div>
         </div>
-    </div>
-
-    <!-- Уведомление о достижении -->
-    <div class="notification" id="notification">
-        <div class="notification-title">🎉 Новое достижение!</div>
-        <div class="notification-desc" id="notificationDesc"></div>
+        
+        <div class="tab-content" id="achievementsTab">
+            <h3>Ваши достижения</h3>
+            <div class="achievements-list" id="achievementsList"></div>
+        </div>
     </div>
 
     <script>
-        // Простая и понятная структура данных
+        // Структура игры
         let game = {
             clicks: 0,
             totalClicks: 0,
@@ -329,7 +340,6 @@
             clicksPerSecond: 0,
             playTime: 0,
             achievements: [
-                // Достижения по количеству кликов
                 { id: 1, name: "Стартапер", description: "10 кликов", goal: 10, achieved: false, type: "clicks" },
                 { id: 2, name: "Новичок", description: "50 кликов", goal: 50, achieved: false, type: "clicks" },
                 { id: 3, name: "Опытный", description: "100 кликов", goal: 100, achieved: false, type: "clicks" },
@@ -340,14 +350,10 @@
                 { id: 8, name: "Вау!", description: "20.000 кликов", goal: 20000, achieved: false, type: "clicks" },
                 { id: 9, name: "Волшебник", description: "50.000 кликов", goal: 50000, achieved: false, type: "clicks" },
                 { id: 10, name: "Легенда", description: "100.000 кликов", goal: 100000, achieved: false, type: "clicks" },
-
-                // Достижения по скорости кликов
                 { id: 11, name: "Нормально так", description: "5 кликов в секунду", goal: 5, achieved: false, type: "cps" },
                 { id: 12, name: "Скорость", description: "10 кликов в секунду", goal: 10, achieved: false, type: "cps" },
                 { id: 13, name: "Сверхзвуковой", description: "20 кликов в секунду", goal: 20, achieved: false, type: "cps" },
                 { id: 14, name: "Метеор", description: "30 кликов в секунду", goal: 30, achieved: false, type: "cps" },
-
-                // Достижения по времени игры
                 { id: 15, name: "Я тут проходом", description: "Играть 1 минуту", goal: 60, achieved: false, type: "time" },
                 { id: 16, name: "Я пожалуй останусь", description: "Играть 5 минут", goal: 300, achieved: false, type: "time" },
                 { id: 17, name: "Уж полночь близится", description: "Играть 30 минут", goal: 1800, achieved: false, type: "time" },
@@ -362,8 +368,8 @@
         const clicksPerSecondElement = document.getElementById('clicksPerSecond');
         const clickArea = document.getElementById('clickArea');
         const achievementsList = document.getElementById('achievementsList');
-        const notification = document.getElementById('notification');
-        const notificationDesc = document.getElementById('notificationDesc');
+        const saveButton = document.getElementById('saveButton');
+        const saveNotification = document.getElementById('saveNotification');
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
 
@@ -376,7 +382,7 @@
                     game.clicks = savedGame.clicks || 0;
                     game.totalClicks = savedGame.totalClicks || 0;
                     game.playTime = savedGame.playTime || 0;
-
+                    
                     if (savedGame.achievements) {
                         game.achievements = savedGame.achievements;
                     }
@@ -391,13 +397,45 @@
             localStorage.setItem('clickerSave', JSON.stringify(game));
         }
 
+        // Отправка результата в бота
+        function sendResultToBot() {
+            const isTelegram = typeof window.Telegram !== 'undefined';
+            
+            if (isTelegram) {
+                const webApp = window.Telegram.WebApp;
+                const user = webApp.initDataUnsafe.user;
+                
+                // Отправляем данные в бота
+                webApp.sendData(JSON.stringify({
+                    action: 'save_result',
+                    user_id: user.id,
+                    username: user.username,
+                    first_name: user.first_name,
+                    clicks: game.totalClicks,
+                    timestamp: Date.now()
+                }));
+                
+                showSaveNotification();
+            } else {
+                // Если не в Telegram, показываем сообщение
+                alert(`Ваш результат: ${game.totalClicks} кликов! Скопируйте это число и отправьте боту.`);
+                showSaveNotification();
+            }
+        }
+
+        function showSaveNotification() {
+            saveNotification.classList.add('show');
+            setTimeout(() => {
+                saveNotification.classList.remove('show');
+            }, 3000);
+        }
+
         // Обработчик клика
         function handleClick(event) {
             game.clicks++;
             game.totalClicks++;
             game.clicksThisSecond++;
-
-            // Создаем анимацию
+            
             const anim = document.createElement('div');
             anim.className = 'click-animation';
             anim.textContent = '+1';
@@ -405,19 +443,17 @@
             anim.style.top = (event.clientY - 20) + 'px';
             document.body.appendChild(anim);
             setTimeout(() => anim.remove(), 1000);
-
+            
             updateUI();
             checkAchievements();
         }
 
-        // Обновление интерфейса
         function updateUI() {
             counter.textContent = game.clicks.toLocaleString();
             totalClicksElement.textContent = game.totalClicks.toLocaleString();
             clicksPerSecondElement.textContent = game.clicksPerSecond;
         }
 
-        // Обновление кликов в секунду
         function updateCPS() {
             game.clicksPerSecond = game.clicksThisSecond;
             game.clicksThisSecond = 0;
@@ -425,20 +461,18 @@
             checkAchievements();
         }
 
-        // Обновление времени игры
         function updateTime() {
             game.playTime++;
             checkAchievements();
         }
 
-        // Проверка достижений
         function checkAchievements() {
             let newAchievements = [];
-
+            
             game.achievements.forEach(achievement => {
                 if (!achievement.achieved) {
                     let progress = 0;
-
+                    
                     if (achievement.type === "clicks") {
                         progress = game.totalClicks;
                     } else if (achievement.type === "cps") {
@@ -446,36 +480,27 @@
                     } else if (achievement.type === "time") {
                         progress = game.playTime;
                     }
-
+                    
                     if (progress >= achievement.goal) {
                         achievement.achieved = true;
                         newAchievements.push(achievement);
                     }
                 }
             });
-
-            // Показываем уведомления для новых достижений
+            
             newAchievements.forEach(achievement => {
                 showAchievement(achievement);
             });
         }
 
-        // Показать уведомление о достижении
         function showAchievement(achievement) {
-            notificationDesc.textContent = `${achievement.name}: ${achievement.description}`;
-            notification.classList.add('show');
-
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
-
-            renderAchievements();
+            // Можно добавить уведомление о достижении
+            console.log('Получено достижение:', achievement.name);
         }
 
-        // Отображение достижений
         function renderAchievements() {
             achievementsList.innerHTML = '';
-
+            
             game.achievements.forEach(achievement => {
                 const div = document.createElement('div');
                 div.className = 'achievement';
@@ -490,19 +515,17 @@
             });
         }
 
-        // Переключение вкладок
         function switchTab(tabName) {
             tabs.forEach(tab => tab.classList.remove('active'));
             tabContents.forEach(content => content.classList.remove('active'));
-
+            
             document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
             document.getElementById(`${tabName}Tab`).classList.add('active');
         }
 
-        // Анимация снега
         function createSnow() {
             const container = document.getElementById('snowContainer');
-
+            
             function addSnowflake() {
                 const snowflake = document.createElement('div');
                 snowflake.className = 'snowflake-bg';
@@ -511,16 +534,15 @@
                 snowflake.style.animationDuration = (Math.random() * 5 + 8) + 's';
                 snowflake.style.fontSize = (Math.random() * 10 + 15) + 'px';
                 snowflake.style.opacity = Math.random() * 0.4 + 0.4;
-
+                
                 container.appendChild(snowflake);
-
+                
                 setTimeout(() => {
                     snowflake.remove();
                     addSnowflake();
                 }, 10000);
             }
-
-            // Создаем начальные снежинки
+            
             for (let i = 0; i < 40; i++) {
                 setTimeout(addSnowflake, Math.random() * 5000);
             }
@@ -531,29 +553,28 @@
             loadGame();
             renderAchievements();
             createSnow();
-
-            // Назначаем обработчики
+            
             clickArea.addEventListener('click', handleClick);
             clickArea.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 handleClick(e);
             });
-
+            
+            saveButton.addEventListener('click', sendResultToBot);
+            
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     switchTab(tab.dataset.tab);
                 });
             });
-
-            // Запускаем таймеры
+            
             setInterval(updateCPS, 1000);
             setInterval(updateTime, 1000);
             setInterval(saveGame, 2000);
-
+            
             updateUI();
         }
 
-        // Запускаем игру
         init();
     </script>
 </body>
