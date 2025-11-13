@@ -321,279 +321,292 @@
     </div>
 
     <script>
-        // Инициализация Telegram Web App
-        const WebApp = window.Telegram?.WebApp;
-        let MainButton, BackButton;
-
-        // Структура игры
-        let game = {
-            clicks: 0,
-            totalClicks: 0,
-            clicksThisSecond: 0,
-            clicksPerSecond: 0,
-            playTime: 0,
-            achievements: [
-                { id: 1, name: "Стартапер", description: "10 кликов", goal: 10, achieved: false, type: "clicks" },
-                { id: 2, name: "Новичок", description: "50 кликов", goal: 50, achieved: false, type: "clicks" },
-                { id: 3, name: "Опытный", description: "100 кликов", goal: 100, achieved: false, type: "clicks" },
-                { id: 4, name: "Мастер", description: "500 кликов", goal: 500, achieved: false, type: "clicks" },
-                { id: 5, name: "Свой", description: "1.000 кликов", goal: 1000, achieved: false, type: "clicks" },
-                { id: 6, name: "Старый, добрый", description: "5.000 кликов", goal: 5000, achieved: false, type: "clicks" },
-                { id: 7, name: "Профессионал", description: "10.000 кликов", goal: 10000, achieved: false, type: "clicks" },
-                { id: 8, name: "Вау!", description: "20.000 кликов", goal: 20000, achieved: false, type: "clicks" },
-                { id: 9, name: "Волшебник", description: "50.000 кликов", goal: 50000, achieved: false, type: "clicks" },
-                { id: 10, name: "Легенда", description: "100.000 кликов", goal: 100000, achieved: false, type: "clicks" },
-                { id: 11, name: "Нормально так", description: "5 кликов в секунду", goal: 5, achieved: false, type: "cps" },
-                { id: 12, name: "Скорость", description: "10 кликов в секунду", goal: 10, achieved: false, type: "cps" },
-                { id: 13, name: "Сверхзвуковой", description: "20 кликов в секунду", goal: 20, achieved: false, type: "cps" },
-                { id: 14, name: "Метеор", description: "30 кликов в секунду", goal: 30, achieved: false, type: "cps" },
-                { id: 15, name: "Я тут проходом", description: "Играть 1 минуту", goal: 60, achieved: false, type: "time" },
-                { id: 16, name: "Я пожалуй останусь", description: "Играть 5 минут", goal: 300, achieved: false, type: "time" },
-                { id: 17, name: "Уж полночь близится", description: "Играть 30 минут", goal: 1800, achieved: false, type: "time" },
-                { id: 18, name: "Настойчивый", description: "Играть 1 час", goal: 3600, achieved: false, type: "time" },
-                { id: 19, name: "Не отходя от кассы", description: "Играть 5 часов", goal: 18000, achieved: false, type: "time" }
-            ]
-        };
-
-        // Получаем элементы DOM
-        const counter = document.getElementById('counter');
-        const totalClicksElement = document.getElementById('totalClicks');
-        const clicksPerSecondElement = document.getElementById('clicksPerSecond');
-        const clickArea = document.getElementById('clickArea');
-        const achievementsList = document.getElementById('achievementsList');
-        const saveInfo = document.getElementById('saveInfo');
-        const fallbackButton = document.getElementById('fallbackButton');
-        const tabs = document.querySelectorAll('.tab');
-        const tabContents = document.querySelectorAll('.tab-content');
-
-        // Инициализация Telegram
-        function initTelegram() {
-            if (WebApp) {
+        let count = 0;
+        const txt = document.getElementById("count_text");
+        
+        // Проверяем поддержку Telegram WebApp
+        function initTelegramFeatures() {
+            if (typeof window.Telegram === 'undefined' || !window.Telegram.WebApp) {
+                console.log('Telegram WebApp not available');
+                showFallbackInterface();
+                return false;
+            }
+            
+            const WebApp = window.Telegram.WebApp;
+            
+            // Проверяем необходимые методы
+            if (!WebApp.sendData || !WebApp.MainButton) {
+                console.log('Required WebApp methods not available');
+                showFallbackInterface();
+                return false;
+            }
+            
+            // Все ок - инициализируем
+            try {
                 WebApp.expand();
                 
-                MainButton = WebApp.MainButton;
-                BackButton = WebApp.BackButton;
-
+                const MainButton = WebApp.MainButton;
+                const BackButton = WebApp.BackButton;
+                
                 // Настраиваем MainButton
                 MainButton.setText("💾 Сохранить результат");
                 MainButton.show();
                 
                 MainButton.onClick(function() {
                     const gameData = {
-                        total_clicks: game.totalClicks,
-                        achievements: game.achievements.filter(a => a.achieved).length,
-                        play_time: game.playTime,
-                        timestamp: Date.now(),
-                        user_data: WebApp.initDataUnsafe.user
+                        action: 'save_clicker_result',
+                        clicks: count,
+                        timestamp: Date.now()
                     };
                     
+                    console.log('Sending data:', gameData);
                     WebApp.sendData(JSON.stringify(gameData));
+                    
+                    // Показываем подтверждение
                     WebApp.showPopup({
                         title: "✅ Успешно!",
-                        message: `Результат ${game.totalClicks.toLocaleString()} кликов сохранен!`,
+                        message: `Результат ${count} кликов сохранен!`,
                         buttons: [{ type: "ok" }]
                     });
                 });
-
-                // Настраиваем BackButton
-                BackButton.show();
-                BackButton.onClick(function() {
-                    WebApp.showAlert("Для сохранения результата используй кнопку внизу экрана");
-                });
-
-                // Скрываем браузерную кнопку
-                fallbackButton.style.display = 'none';
-                saveInfo.textContent = "💾 Для сохранения результата используй кнопку внизу экрана";
                 
-            } else {
-                // Если не в Telegram, показываем браузерную кнопку
-                fallbackButton.style.display = 'block';
-                saveInfo.textContent = "💾 Нажми кнопку ниже чтобы сохранить результат";
+                // Настраиваем BackButton если доступен
+                if (BackButton && BackButton.show) {
+                    BackButton.show();
+                    BackButton.onClick(function() {
+                        WebApp.showAlert("Для сохранения результата используйте кнопку внизу экрана");
+                    });
+                }
                 
-                fallbackButton.addEventListener('click', function() {
-                    const resultText = `🏆 Мой результат в кликере: ${game.totalClicks.toLocaleString()} кликов!`;
-                    
-                    // Копируем в буфер обмена
-                    const tempInput = document.createElement('textarea');
-                    tempInput.value = resultText;
-                    document.body.appendChild(tempInput);
-                    tempInput.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(tempInput);
-                    
-                    alert('✅ Результат скопирован! Отправь его боту в чат.');
-                });
+                console.log('Telegram WebApp features initialized successfully');
+                return true;
+                
+            } catch (error) {
+                console.log('Error initializing Telegram features:', error);
+                showFallbackInterface();
+                return false;
             }
         }
-
-        // Загрузка сохранения
-        function loadGame() {
-            const saved = localStorage.getItem('clickerSave');
+        
+        // Fallback интерфейс для случаев когда Telegram WebApp недоступен
+        function showFallbackInterface() {
+            // Создаем кнопку сохранения
+            const saveButton = document.createElement('button');
+            saveButton.innerHTML = '💾 Сохранить результат';
+            saveButton.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #4db8ff;
+                color: white;
+                border: none;
+                padding: 15px 25px;
+                border-radius: 10px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                z-index: 1000;
+                box-shadow: 0 4px 15px rgba(77, 184, 255, 0.4);
+            `;
+            
+            saveButton.onclick = function() {
+                saveResultFallback();
+            };
+            
+            document.body.appendChild(saveButton);
+            
+            // Добавляем информационное сообщение
+            const infoDiv = document.createElement('div');
+            infoDiv.innerHTML = 'Используйте кнопку ниже для сохранения результата';
+            infoDiv.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 10px 15px;
+                border-radius: 8px;
+                font-size: 14px;
+                z-index: 1000;
+                text-align: center;
+                white-space: nowrap;
+            `;
+            
+            document.body.appendChild(infoDiv);
+        }
+        
+        // Fallback метод сохранения
+        function saveResultFallback() {
+            const resultText = `🏆 Мой результат в кликере: ${count} кликов!`;
+            
+            // Показываем красивое окно с результатом
+            const resultPopup = document.createElement('div');
+            resultPopup.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.95);
+                color: white;
+                padding: 30px;
+                border-radius: 20px;
+                border: 3px solid #4db8ff;
+                text-align: center;
+                z-index: 10000;
+                font-size: 18px;
+                max-width: 350px;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            `;
+            
+            resultPopup.innerHTML = `
+                <h3 style="margin: 0 0 20px 0; color: #4db8ff;">🎯 Ваш результат</h3>
+                <div style="font-size: 3em; color: #4db8ff; margin: 20px 0;">${count}</div>
+                <div style="margin-bottom: 25px;">кликов</div>
+                
+                <div style="margin: 20px 0; font-size: 14px; color: #a8d8ff;">
+                    Скопируйте это число и отправьте боту в чат
+                </div>
+                
+                <button onclick="copyResult()" style="
+                    margin: 5px;
+                    padding: 12px 25px;
+                    background: #4db8ff;
+                    border: none;
+                    border-radius: 10px;
+                    color: white;
+                    cursor: pointer;
+                    font-size: 16px;
+                    font-weight: bold;
+                ">📋 Скопировать</button>
+                
+                <button onclick="closeResultPopup()" style="
+                    margin: 5px;
+                    padding: 12px 25px;
+                    background: #666;
+                    border: none;
+                    border-radius: 10px;
+                    color: white;
+                    cursor: pointer;
+                    font-size: 16px;
+                ">Закрыть</button>
+            `;
+            
+            resultPopup.id = 'resultPopup';
+            document.body.appendChild(resultPopup);
+        }
+        
+        // Копирование результата
+        function copyResult() {
+            const resultText = `Мой результат в кликере: ${count} кликов`;
+            
+            const tempInput = document.createElement('textarea');
+            tempInput.value = resultText;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            
+            // Показываем подтверждение копирования
+            const copyMsg = document.createElement('div');
+            copyMsg.textContent = '✅ Скопировано!';
+            copyMsg.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(77, 184, 255, 0.9);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 8px;
+                z-index: 10001;
+                font-weight: bold;
+            `;
+            
+            document.body.appendChild(copyMsg);
+            setTimeout(() => copyMsg.remove(), 2000);
+        }
+        
+        // Закрытие попапа
+        function closeResultPopup() {
+            const popup = document.getElementById('resultPopup');
+            if (popup) {
+                popup.remove();
+            }
+        }
+        
+        // Функция клика (твоя оригинальная)
+        function click_count(){
+            count++;
+            text = "" + count;
+            txt.innerText = text;
+        }
+        
+        // Автосохранение в localStorage
+        function autoSave() {
+            localStorage.setItem('clicker_count', count.toString());
+        }
+        
+        function loadSave() {
+            const saved = localStorage.getItem('clicker_count');
             if (saved) {
-                try {
-                    const savedGame = JSON.parse(saved);
-                    game.clicks = savedGame.clicks || 0;
-                    game.totalClicks = savedGame.totalClicks || 0;
-                    game.playTime = savedGame.playTime || 0;
-                    
-                    if (savedGame.achievements) {
-                        game.achievements = savedGame.achievements;
-                    }
-                } catch (e) {
-                    console.log('Ошибка загрузки:', e);
-                }
+                count = parseInt(saved);
+                txt.innerText = count;
             }
         }
-
-        // Сохранение игры
-        function saveGame() {
-            localStorage.setItem('clickerSave', JSON.stringify(game));
-        }
-
-        // Обработчик клика
-        function handleClick(event) {
-            game.clicks++;
-            game.totalClicks++;
-            game.clicksThisSecond++;
+        
+        // Инициализация при загрузке
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSave();
+            initTelegramFeatures();
             
-            const anim = document.createElement('div');
-            anim.className = 'click-animation';
-            anim.textContent = '+1';
-            anim.style.left = (event.clientX - 20) + 'px';
-            anim.style.top = (event.clientY - 20) + 'px';
-            document.body.appendChild(anim);
-            setTimeout(() => anim.remove(), 1000);
+            // Автосохранение каждые 10 секунд
+            setInterval(autoSave, 10000);
             
-            updateUI();
-            checkAchievements();
-        }
-
-        function updateUI() {
-            counter.textContent = game.clicks.toLocaleString();
-            totalClicksElement.textContent = game.totalClicks.toLocaleString();
-            clicksPerSecondElement.textContent = game.clicksPerSecond;
-        }
-
-        function updateCPS() {
-            game.clicksPerSecond = game.clicksThisSecond;
-            game.clicksThisSecond = 0;
-            updateUI();
-            checkAchievements();
-        }
-
-        function updateTime() {
-            game.playTime++;
-            checkAchievements();
-        }
-
-        function checkAchievements() {
-            let newAchievements = [];
-            
-            game.achievements.forEach(achievement => {
-                if (!achievement.achieved) {
-                    let progress = 0;
+            // Обработчик клика по снежинке
+            const clickArea = document.getElementById('clickArea');
+            if (clickArea) {
+                clickArea.addEventListener('click', function(event) {
+                    click_count();
                     
-                    if (achievement.type === "clicks") {
-                        progress = game.totalClicks;
-                    } else if (achievement.type === "cps") {
-                        progress = game.clicksPerSecond;
-                    } else if (achievement.type === "time") {
-                        progress = game.playTime;
-                    }
-                    
-                    if (progress >= achievement.goal) {
-                        achievement.achieved = true;
-                        newAchievements.push(achievement);
-                    }
-                }
-            });
-            
-            newAchievements.forEach(achievement => {
-                showAchievement(achievement);
-            });
-        }
-
-        function showAchievement(achievement) {
-            console.log('Получено достижение:', achievement.name);
-        }
-
-        function renderAchievements() {
-            achievementsList.innerHTML = '';
-            
-            game.achievements.forEach(achievement => {
-                const div = document.createElement('div');
-                div.className = 'achievement';
-                div.innerHTML = `
-                    <div class="achievement-icon">${achievement.achieved ? '✅' : '🔒'}</div>
-                    <div class="achievement-info">
-                        <div class="achievement-name">${achievement.name}</div>
-                        <div class="achievement-desc">${achievement.description}</div>
-                    </div>
-                `;
-                achievementsList.appendChild(div);
-            });
-        }
-
-        function switchTab(tabName) {
-            tabs.forEach(tab => tab.classList.remove('active'));
-            tabContents.forEach(content => content.classList.remove('active'));
-            
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-            document.getElementById(`${tabName}Tab`).classList.add('active');
-        }
-
-        function createSnow() {
-            const container = document.getElementById('snowContainer');
-            
-            function addSnowflake() {
-                const snowflake = document.createElement('div');
-                snowflake.className = 'snowflake-bg';
-                snowflake.textContent = '❄';
-                snowflake.style.left = Math.random() * 100 + 'vw';
-                snowflake.style.animationDuration = (Math.random() * 5 + 8) + 's';
-                snowflake.style.fontSize = (Math.random() * 10 + 15) + 'px';
-                snowflake.style.opacity = Math.random() * 0.4 + 0.4;
-                
-                container.appendChild(snowflake);
-                
-                setTimeout(() => {
-                    snowflake.remove();
-                    addSnowflake();
-                }, 10000);
-            }
-            
-            for (let i = 0; i < 40; i++) {
-                setTimeout(addSnowflake, Math.random() * 5000);
-            }
-        }
-
-        // Инициализация игры
-        function init() {
-            loadGame();
-            initTelegram();
-            renderAchievements();
-            createSnow();
-            
-            clickArea.addEventListener('click', handleClick);
-            clickArea.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                handleClick(e);
-            });
-            
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    switchTab(tab.dataset.tab);
+                    // Создаем анимацию клика
+                    const anim = document.createElement('div');
+                    anim.className = 'click-animation';
+                    anim.textContent = '+1';
+                    anim.style.left = (event.clientX - 20) + 'px';
+                    anim.style.top = (event.clientY - 20) + 'px';
+                    document.body.appendChild(anim);
+                    setTimeout(() => anim.remove(), 1000);
                 });
-            });
+            }
+        });
+        
+        // Стили для анимации клика
+        const style = document.createElement('style');
+        style.textContent = `
+            .click-animation {
+                position: absolute;
+                font-size: 24px;
+                font-weight: bold;
+                color: #4db8ff;
+                pointer-events: none;
+                animation: floatUp 1s forwards;
+                z-index: 100;
+            }
             
-            setInterval(updateCPS, 1000);
-            setInterval(updateTime, 1000);
-            setInterval(saveGame, 2000);
-            
-            updateUI();
-        }
-
-        init();
+            @keyframes floatUp {
+                0% {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+                100% {
+                    transform: translateY(-100px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
